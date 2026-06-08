@@ -1,0 +1,138 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marketplace — BibliothequePLR</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .mkt-hero{background:linear-gradient(135deg,var(--primary) 0%,#2a4aad 100%);color:#fff;padding:3rem 2rem;text-align:center}
+    .mkt-hero h1{font-size:2rem;font-weight:800;margin-bottom:.5rem}
+    .dl-btn{display:block;width:100%;padding:.55rem;background:var(--gold);color:#fff;border:none;border-radius:0 0 12px 12px;font-weight:700;font-size:.85rem;cursor:pointer;transition:background .2s;text-align:center}
+    .dl-btn:hover{background:var(--gold-dark)}
+    .dl-btn.done{background:#22c55e;cursor:default}
+    .dl-count{position:absolute;top:.5rem;right:.5rem;background:rgba(0,0,0,.6);color:#fff;font-size:.72rem;font-weight:700;padding:.2rem .5rem;border-radius:20px}
+    .modal-wrap{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center}
+    .modal-box{background:#fff;border-radius:16px;padding:2rem;max-width:400px;width:90%;text-align:center}
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="index.html" class="nav-logo">
+    <img src="assets/images/logo.png" alt="BibliothequePLR" onerror="this.style.display='none'"/>
+    <span class="nav-logo-text">Bibliotheque<span>PLR</span></span>
+  </a>
+  <div class="nav-links">
+    <a href="index.html">Accueil</a>
+    <a href="profil.html" id="nav-profil" style="display:none">Mon espace</a>
+    <a href="admin/index.html" id="nav-admin" style="display:none">Admin</a>
+    <a href="auth.html" class="btn btn-primary btn-sm" id="nav-login">Connexion</a>
+    <button class="btn btn-outline btn-sm" id="nav-logout" style="display:none">Deconnexion</button>
+  </div>
+</nav>
+<div class="mkt-hero">
+  <h1>Marketplace</h1>
+  <p style="opacity:.85;margin-bottom:1.5rem">Telechargez vos ressources PLR</p>
+  <div class="search-bar" style="max-width:480px;margin:0 auto">
+    <input type="text" id="search-input" placeholder="Rechercher..."/>
+    <button class="btn btn-primary" id="search-btn">Rechercher</button>
+  </div>
+</div>
+<main class="container" style="padding-top:2rem;padding-bottom:3rem">
+  <div id="category-filters" class="category-filters"></div>
+  <div id="books-grid" class="books-grid" style="margin-top:1rem"></div>
+  <p id="empty-msg" style="text-align:center;color:#64748b;display:none;padding:3rem">Aucun livre trouve.</p>
+</main>
+<div class="modal-wrap" id="dl-modal">
+  <div class="modal-box">
+    <div style="font-size:3rem;margin-bottom:.8rem">📥</div>
+    <h3 id="dl-modal-title" style="margin-bottom:.5rem;color:var(--primary)"></h3>
+    <p id="dl-modal-body" style="color:#64748b;font-size:.9rem;margin-bottom:1.5rem"></p>
+    <div style="display:flex;gap:1rem;justify-content:center">
+      <button class="btn btn-primary" id="dl-confirm">Telecharger</button>
+      <button class="btn btn-outline" id="dl-cancel" style="border-color:var(--border);color:var(--text)">Annuler</button>
+    </div>
+  </div>
+</div>
+<script type="module">
+  import { getSession, getProfile, logout } from './js/auth.js';
+  import { getBooks, getCategories, getDownloads, recordDownload } from './js/books.js';
+  let allBooks=[], myDlIds=[], session=null, activeCategory=null, pending=null;
+  document.getElementById('nav-logout')?.addEventListener('click', logout);
+  async function init() {
+    session = await getSession();
+    if (session) {
+      document.getElementById('nav-login').style.display = 'none';
+      document.getElementById('nav-logout').style.display = '';
+      document.getElementById('nav-profil').style.display = '';
+      const profile = await getProfile(session.user.id);
+      if (profile?.role === 'admin') document.getElementById('nav-admin').style.display = '';
+      const dls = await getDownloads(session.user.id);
+      myDlIds = dls.map(d => d.book_id);
+    }
+    allBooks = await getBooks();
+    renderFilters();
+    renderBooks(allBooks);
+  }
+  function renderFilters() {
+    const cats = getCategories(allBooks);
+    const c = document.getElementById('category-filters');
+    c.innerHTML = `<button class="cat-btn active" data-cat="">Tous</button>${cats.map(x=>`<button class="cat-btn" data-cat="${x}">${x}</button>`).join('')}`;
+    c.querySelectorAll('.cat-btn').forEach(btn => btn.addEventListener('click', () => {
+      c.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active'); activeCategory = btn.dataset.cat||null; applyFilters();
+    }));
+  }
+  function renderBooks(books) {
+    const grid = document.getElementById('books-grid');
+    const empty = document.getElementById('empty-msg');
+    if (!books.length) { grid.innerHTML=''; empty.style.display=''; return; }
+    empty.style.display = 'none';
+    const done = new Set(myDlIds);
+    grid.innerHTML = books.map(b => `
+      <div class="book-card" style="position:relative">
+        <a href="detail.html?id=${b.id}">
+          <div class="book-cover"><img src="${b.image_url||'assets/images/placeholder.png'}" alt="${b.titre}" loading="lazy"/></div>
+        </a>
+        ${b.downloads_count ? `<div class="dl-count">📥 ${b.downloads_count}</div>` : ''}
+        <div class="book-info">
+          <div class="book-title">${b.titre}</div>
+          <div class="book-author">${b.auteur}</div>
+          ${b.categorie?`<span class="book-cat">${b.categorie}</span>`:''}
+        </div>
+        <button class="dl-btn ${done.has(b.id)?'done':''}" data-id="${b.id}" data-titre="${b.titre}" data-url="${b.file_url||''}">
+          ${done.has(b.id)?'✅ Telecharge':'📥 Telecharger'}
+        </button>
+      </div>`).join('');
+    grid.querySelectorAll('.dl-btn:not(.done)').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!session) { window.location.href='auth.html'; return; }
+        pending = { id: btn.dataset.id, titre: btn.dataset.titre, url: btn.dataset.url };
+        document.getElementById('dl-modal-title').textContent = pending.titre;
+        document.getElementById('dl-modal-body').textContent = pending.url ? 'Cliquez pour telecharger ce livre.' : 'Enregistrer dans vos telechargements.';
+        document.getElementById('dl-modal').style.display = 'flex';
+      });
+    });
+  }
+  document.getElementById('dl-cancel').addEventListener('click', () => { document.getElementById('dl-modal').style.display='none'; pending=null; });
+  document.getElementById('dl-confirm').addEventListener('click', async () => {
+    if (!pending) return;
+    await recordDownload(session.user.id, pending.id);
+    myDlIds.push(pending.id);
+    if (pending.url) window.open(pending.url, '_blank');
+    document.getElementById('dl-modal').style.display = 'none';
+    applyFilters(); pending = null;
+  });
+  function applyFilters() {
+    const q = document.getElementById('search-input').value.toLowerCase();
+    let f = allBooks;
+    if (activeCategory) f = f.filter(b=>b.categorie===activeCategory);
+    if (q) f = f.filter(b=>b.titre.toLowerCase().includes(q)||b.auteur.toLowerCase().includes(q));
+    renderBooks(f);
+  }
+  document.getElementById('search-input').addEventListener('input', applyFilters);
+  document.getElementById('search-btn').addEventListener('click', applyFilters);
+  init();
+</script>
+</body>
+</html>
