@@ -3,114 +3,205 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mon espace — BibliothèquePLR</title>
+  <title>Mon espace — BibliothequePLR</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    .dashboard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1.2rem;margin-bottom:2rem}
-    .dash-card{background:#fff;border-radius:12px;padding:1.5rem;box-shadow:var(--shadow);text-align:center;cursor:pointer;transition:transform .2s}
-    .dash-card:hover{transform:translateY(-3px)}
+    .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:1.2rem;margin-bottom:2rem}
+    .dash-card{background:#fff;border-radius:12px;padding:1.5rem;box-shadow:var(--shadow);text-align:center;cursor:pointer;transition:transform .2s;border:2px solid transparent}
+    .dash-card:hover{transform:translateY(-3px);border-color:var(--gold)}
     .d-icon{font-size:2.2rem;margin-bottom:.5rem}
     .d-val{font-size:2rem;font-weight:800;color:var(--primary)}
     .d-label{font-size:.78rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-top:.2rem}
     .tabs-nav{display:flex;border-bottom:2px solid var(--border);margin-bottom:1.5rem}
     .tab-btn{padding:.7rem 1.5rem;font-weight:600;font-size:.9rem;color:var(--text-muted);background:transparent;border:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s}
     .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
-    .tab-content{display:none}.tab-content.active{display:block}
+    .tab-pane{display:none}.tab-pane.active{display:block}
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300}
+    .modal-overlay.open{display:flex;align-items:center;justify-content:center}
+    .modal-box{background:#fff;border-radius:16px;padding:2rem;width:90%;max-width:420px}
   </style>
 </head>
 <body>
+
 <nav class="navbar">
   <a href="index.html" class="nav-logo">
-    <img src="assets/images/logo.png" alt="BibliothequePLR" onerror="this.style.display='none'" />
+    <img src="assets/images/logo.png" alt="Logo" onerror="this.style.display='none'"/>
     <span class="nav-logo-text">Bibliotheque<span>PLR</span></span>
   </a>
   <div class="nav-links">
     <a href="index.html">Accueil</a>
     <a href="marketplace.html">Marketplace</a>
     <a href="admin/index.html" id="nav-admin" style="display:none">Admin</a>
-    <button class="btn btn-outline btn-sm" id="nav-logout">Deconnexion</button>
+    <button class="btn btn-outline btn-sm" id="btn-logout">Deconnexion</button>
   </div>
 </nav>
+
 <main class="container" style="padding-top:2rem;padding-bottom:3rem">
-  <div id="profil-header" style="background:#fff;border-radius:12px;padding:1.5rem;box-shadow:var(--shadow);margin-bottom:1.5rem"></div>
-  <div class="dashboard-grid">
-    <div class="dash-card" onclick="document.getElementById('tab-dl-btn').click()">
+
+  <!-- CARTE PROFIL -->
+  <div style="background:#fff;border-radius:12px;padding:1.5rem;box-shadow:var(--shadow);margin-bottom:1.5rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
+    <div id="avatar-box" style="width:72px;height:72px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;flex-shrink:0">👤</div>
+    <div style="flex:1">
+      <h2 id="profil-nom" style="margin:0;color:var(--primary)">...</h2>
+      <p id="profil-email" style="color:#64748b;margin:.2rem 0;font-size:.9rem"></p>
+      <span id="profil-role" class="badge badge-user">user</span>
+    </div>
+    <button class="btn btn-primary btn-sm" id="btn-edit">✏️ Modifier le profil</button>
+  </div>
+
+  <!-- STATS -->
+  <div class="dash-grid">
+    <div class="dash-card" id="card-dl">
       <div class="d-icon">📥</div><div class="d-val" id="stat-dl">—</div><div class="d-label">Telechargements</div>
     </div>
-    <div class="dash-card" onclick="document.getElementById('tab-fav-btn').click()">
+    <div class="dash-card" id="card-fav">
       <div class="d-icon">❤️</div><div class="d-val" id="stat-fav">—</div><div class="d-label">Favoris</div>
     </div>
     <div class="dash-card" onclick="window.location='marketplace.html'">
-      <div class="d-icon">📦</div><div class="d-val" style="font-size:1rem;padding-top:.6rem">Acceder</div><div class="d-label">Marketplace</div>
+      <div class="d-icon">📦</div>
+      <div class="d-val" style="font-size:.95rem;padding-top:.5rem">Acceder</div>
+      <div class="d-label">Marketplace</div>
     </div>
   </div>
+
+  <!-- ONGLETS -->
   <div class="tabs-nav">
-    <button class="tab-btn active" id="tab-dl-btn" data-tab="downloads">📥 Mes telechargements</button>
-    <button class="tab-btn" id="tab-fav-btn" data-tab="favorites">❤️ Mes favoris</button>
+    <button class="tab-btn active" data-pane="dl">📥 Mes telechargements</button>
+    <button class="tab-btn" data-pane="fav">❤️ Mes favoris</button>
   </div>
-  <div id="tab-downloads" class="tab-content active">
-    <div id="downloads-grid" class="books-grid"></div>
-    <div id="empty-dl" style="display:none;text-align:center;padding:2.5rem;background:#fff;border-radius:12px;box-shadow:var(--shadow)">
-      <div style="font-size:3rem;margin-bottom:.8rem">📥</div>
-      <p style="color:#64748b">Aucun telechargement pour l'instant.</p>
-      <a href="marketplace.html" class="btn btn-primary" style="margin-top:1rem;display:inline-flex">Aller a la marketplace</a>
+  <div id="pane-dl" class="tab-pane active">
+    <div id="grid-dl" class="books-grid"></div>
+    <div id="empty-dl" style="display:none;text-align:center;padding:2rem;background:#fff;border-radius:12px;box-shadow:var(--shadow)">
+      <div style="font-size:2.5rem">📥</div>
+      <p style="color:#64748b;margin:.8rem 0">Aucun telechargement.</p>
+      <a href="marketplace.html" class="btn btn-primary" style="display:inline-flex;margin-top:.5rem">Aller a la marketplace</a>
     </div>
   </div>
-  <div id="tab-favorites" class="tab-content">
-    <div id="favs-grid" class="books-grid"></div>
-    <div id="empty-fav" style="display:none;text-align:center;padding:2.5rem;background:#fff;border-radius:12px;box-shadow:var(--shadow)">
-      <div style="font-size:3rem;margin-bottom:.8rem">❤️</div>
-      <p style="color:#64748b">Aucun favori pour l'instant.</p>
-      <a href="marketplace.html" class="btn btn-primary" style="margin-top:1rem;display:inline-flex">Explorer la marketplace</a>
+  <div id="pane-fav" class="tab-pane">
+    <div id="grid-fav" class="books-grid"></div>
+    <div id="empty-fav" style="display:none;text-align:center;padding:2rem;background:#fff;border-radius:12px;box-shadow:var(--shadow)">
+      <div style="font-size:2.5rem">❤️</div>
+      <p style="color:#64748b;margin:.8rem 0">Aucun favori.</p>
+      <a href="marketplace.html" class="btn btn-primary" style="display:inline-flex;margin-top:.5rem">Explorer la marketplace</a>
     </div>
   </div>
+
 </main>
+
+<!-- MODAL MODIFIER PROFIL -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal-box">
+    <h3 style="margin-bottom:1.2rem;color:var(--primary)">Modifier mon profil</h3>
+    <div class="form-group">
+      <label>Nom complet</label>
+      <input type="text" id="edit-nom" placeholder="Votre nom" />
+    </div>
+    <p id="edit-err" style="color:var(--danger);font-size:.85rem;min-height:1rem"></p>
+    <p id="edit-ok" style="color:var(--success);font-size:.85rem;min-height:1rem"></p>
+    <div style="display:flex;gap:1rem;margin-top:1rem">
+      <button class="btn btn-primary" id="edit-save">Enregistrer</button>
+      <button class="btn btn-outline" id="edit-close" style="border-color:var(--border);color:var(--text)">Annuler</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
   import { requireAuth, logout, getProfile } from './js/auth.js';
   import { getDownloads, getFavorites } from './js/books.js';
-  document.getElementById('nav-logout').addEventListener('click', logout);
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-    });
+  import { supabase } from './js/supabase.js';
+
+  var uid = null;
+
+  // DECONNEXION
+  document.getElementById('btn-logout').onclick = function() { logout(); };
+
+  // ONGLETS
+  document.querySelectorAll('.tab-btn').forEach(function(b) {
+    b.onclick = function() {
+      document.querySelectorAll('.tab-btn').forEach(function(x){ x.classList.remove('active'); });
+      document.querySelectorAll('.tab-pane').forEach(function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      document.getElementById('pane-' + b.dataset.pane).classList.add('active');
+    };
   });
+  document.getElementById('card-dl').onclick = function(){ document.querySelectorAll('.tab-btn')[0].click(); };
+  document.getElementById('card-fav').onclick = function(){ document.querySelectorAll('.tab-btn')[1].click(); };
+
+  // MODAL PROFIL
+  document.getElementById('btn-edit').onclick = function() {
+    document.getElementById('edit-nom').value = document.getElementById('profil-nom').textContent;
+    document.getElementById('edit-err').textContent = '';
+    document.getElementById('edit-ok').textContent = '';
+    document.getElementById('edit-modal').classList.add('open');
+  };
+  document.getElementById('edit-close').onclick = function() {
+    document.getElementById('edit-modal').classList.remove('open');
+  };
+  document.getElementById('edit-modal').onclick = function(e) {
+    if (e.target === this) this.classList.remove('open');
+  };
+  document.getElementById('edit-save').onclick = async function() {
+    var nom = document.getElementById('edit-nom').value.trim();
+    if (!nom) { document.getElementById('edit-err').textContent = 'Le nom est requis.'; return; }
+    var r = await supabase.from('profiles').update({ nom: nom }).eq('id', uid);
+    if (r.error) { document.getElementById('edit-err').textContent = r.error.message; return; }
+    document.getElementById('profil-nom').textContent = nom;
+    document.getElementById('edit-ok').textContent = 'Profil mis a jour !';
+    setTimeout(function(){ document.getElementById('edit-modal').classList.remove('open'); }, 1000);
+  };
+
   function bookCard(b, date) {
-    return `<a href="detail.html?id=${b.id}" class="book-card">
-      <div class="book-cover"><img src="${b.image_url || 'assets/images/placeholder.png'}" alt="${b.titre}" loading="lazy"/></div>
-      <div class="book-info">
-        <div class="book-title">${b.titre}</div>
-        <div class="book-author">${b.auteur}</div>
-        ${b.categorie ? `<span class="book-cat">${b.categorie}</span>` : ''}
-        ${date ? `<div style="font-size:.73rem;color:#94a3b8;margin-top:.3rem">${new Date(date).toLocaleDateString('fr-FR')}</div>` : ''}
-      </div></a>`;
+    var img = b.image_url ? b.image_url : 'assets/images/placeholder.png';
+    var cat = b.categorie ? '<span class="book-cat">' + b.categorie + '</span>' : '';
+    var dt = date ? '<div style="font-size:.73rem;color:#94a3b8;margin-top:.3rem">' + new Date(date).toLocaleDateString('fr-FR') + '</div>' : '';
+    return '<a href="detail.html?id=' + b.id + '" class="book-card"><div class="book-cover"><img src="' + img + '" alt="cover" loading="lazy"/></div><div class="book-info"><div class="book-title">' + b.titre + '</div><div class="book-author">' + b.auteur + '</div>' + cat + dt + '</div></a>';
   }
+
   async function init() {
-    const session = await requireAuth();
+    var session = await requireAuth();
     if (!session) return;
-    const profile = await getProfile(session.user.id);
-    if (profile?.role === 'admin') document.getElementById('nav-admin').style.display = '';
-    document.getElementById('profil-header').innerHTML = `
-      <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
-        ${profile?.avatar_url ? `<img src="${profile.avatar_url}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid var(--gold)"/>` : `<div style="width:64px;height:64px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:1.8rem;color:#fff">👤</div>`}
-        <div>
-          <h2 style="margin:0;color:var(--primary)">${profile?.nom || 'Utilisateur'}</h2>
-          <p style="color:#64748b;margin:.2rem 0">${session.user.email}</p>
-          <span class="badge badge-${profile?.role || 'user'}">${profile?.role || 'user'}</span>
-        </div>
-      </div>`;
-    const [downloads, favs] = await Promise.all([getDownloads(session.user.id), getFavorites(session.user.id)]);
-    document.getElementById('stat-dl').textContent = downloads.length;
+    uid = session.user.id;
+
+    var profile = await getProfile(uid);
+    if (profile && profile.role === 'admin') document.getElementById('nav-admin').style.display = '';
+
+    var nom = profile && profile.nom ? profile.nom : 'Utilisateur';
+    var role = profile && profile.role ? profile.role : 'user';
+    document.getElementById('profil-nom').textContent = nom;
+    document.getElementById('profil-email').textContent = session.user.email;
+    var rb = document.getElementById('profil-role');
+    rb.textContent = role;
+    rb.className = 'badge badge-' + role;
+
+    if (profile && profile.avatar_url) {
+      var box = document.getElementById('avatar-box');
+      box.innerHTML = '';
+      var img = document.createElement('img');
+      img.src = profile.avatar_url;
+      img.style.cssText = 'width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--gold)';
+      box.style.background = 'none';
+      box.appendChild(img);
+    }
+
+    var res = await Promise.all([getDownloads(uid), getFavorites(uid)]);
+    var dls = res[0], favs = res[1];
+
+    document.getElementById('stat-dl').textContent = dls.length;
     document.getElementById('stat-fav').textContent = favs.length;
-    const dlGrid = document.getElementById('downloads-grid');
-    if (!downloads.length) document.getElementById('empty-dl').style.display = '';
-    else dlGrid.innerHTML = downloads.map(d => d.books ? bookCard(d.books, d.downloaded_at) : '').join('');
-    const favGrid = document.getElementById('favs-grid');
-    if (!favs.length) document.getElementById('empty-fav').style.display = '';
-    else favGrid.innerHTML = favs.map(f => f.books ? bookCard(f.books, null) : '').join('');
+
+    if (dls.length) {
+      document.getElementById('grid-dl').innerHTML = dls.map(function(d){ return d.books ? bookCard(d.books, d.downloaded_at) : ''; }).join('');
+    } else {
+      document.getElementById('empty-dl').style.display = '';
+    }
+
+    if (favs.length) {
+      document.getElementById('grid-fav').innerHTML = favs.map(function(f){ return f.books ? bookCard(f.books, null) : ''; }).join('');
+    } else {
+      document.getElementById('empty-fav').style.display = '';
+    }
   }
+
   init();
 </script>
 </body>

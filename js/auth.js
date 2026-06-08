@@ -37,8 +37,10 @@ export async function registerWithEmail(email, password, nom) {
 }
 
 export async function logout() {
-  await supabase.auth.signOut();
-  window.location.href = 'index.html';
+  await supabase.auth.signOut({ scope: 'global' });
+  localStorage.clear();
+  sessionStorage.clear();
+  window.location.replace('index.html');
 }
 
 export async function requireAdmin() {
