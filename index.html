@@ -1,0 +1,209 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BibliothèquePLR — Vos ressources, votre réussite</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-logo">
+    <img src="assets/images/logo.png" alt="BibliothequePLR" onerror="this.style.display='none'" />
+    <span class="nav-logo-text">Bibliothèque<span>PLR</span></span>
+  </a>
+  <div class="nav-links" id="nav-links">
+    <a href="index.html">Accueil</a>
+    <a href="profil.html" id="nav-profil" style="display:none">Mon profil</a>
+    <a href="admin/index.html" id="nav-admin" style="display:none">⚙️ Admin</a>
+    <a href="auth.html" class="btn btn-primary btn-sm" id="nav-login">Connexion</a>
+    <button class="btn btn-outline btn-sm" id="nav-logout" style="display:none">Déconnexion</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-content">
+    <h1>Votre bibliothèque <span>numérique</span></h1>
+    <p>Découvrez, téléchargez et explorez des ressources PLR. Romans, nouvelles, guides et bien plus.</p>
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="Rechercher un titre, un auteur..." />
+      <button class="btn btn-primary" id="search-btn">🔍 Rechercher</button>
+    </div>
+  </div>
+</section>
+
+<!-- CATEGORIES -->
+<section class="cats-section">
+  <div class="cats-scroll" id="cats-scroll">
+    <!-- rempli dynamiquement -->
+  </div>
+</section>
+
+<!-- LIVRES EN VEDETTE -->
+<section class="featured-section">
+  <div style="max-width:1200px;margin:0 auto">
+    <div class="featured-header">
+      <h2 class="section-title">❤️ Les coups de cœur <span>de la semaine</span></h2>
+      <a href="#catalogue" class="more-link" id="btn-more">Plus de livres →</a>
+    </div>
+    <div class="featured-grid" id="featured-grid">
+      <p style="color:#64748b">Chargement...</p>
+    </div>
+  </div>
+</section>
+
+<!-- CATALOGUE COMPLET -->
+<main class="container" id="catalogue" style="padding-top:2.5rem;padding-bottom:3rem">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem">
+    <h2 style="font-size:1.3rem;font-weight:700;color:var(--primary)">Catalogue complet</h2>
+    <span id="book-count" style="color:#64748b;font-size:0.9rem"></span>
+  </div>
+  <div id="category-filters" class="category-filters"></div>
+  <div id="books-grid" class="books-grid" style="margin-top:1rem"></div>
+  <p id="empty-msg" style="text-align:center;color:#64748b;display:none;margin-top:3rem;padding:2rem">Aucun livre trouvé.</p>
+</main>
+
+<footer style="text-align:center;padding:2rem;color:#94a3b8;font-size:0.85rem;background:#fff;border-top:1px solid #e2e8f0">
+  © 2024 BibliothèquePLR — Vos ressources, votre réussite
+</footer>
+
+<script type="module">
+  import { getSession, getProfile, logout } from './js/auth.js';
+  import { getBooks, getCategories } from './js/books.js';
+
+  let allBooks = [];
+  let activeCategory = null;
+
+  // Images de fond pour les catégories (via Picsum avec seed fixe)
+  const CAT_CONFIG = {
+    'Romance':               { icon: '💕', color: '#e91e8c', img: 'https://picsum.photos/seed/romance/300/300' },
+    'Roman':                 { icon: '📖', color: '#7c3aed', img: 'https://picsum.photos/seed/roman/300/300' },
+    'Nouvelles':             { icon: '📰', color: '#f59e0b', img: 'https://picsum.photos/seed/nouvelles/300/300' },
+    'Sciences Occultes':     { icon: '🔮', color: '#1a1a2e', img: 'https://picsum.photos/seed/occult/300/300' },
+    'Roman Aventure':        { icon: '⚔️', color: '#059669', img: 'https://picsum.photos/seed/aventure/300/300' },
+    'Religion & spiritualité':{ icon: '🙏', color: '#92400e', img: 'https://picsum.photos/seed/spirit/300/300' },
+    'Bien-être':             { icon: '🌿', color: '#065f46', img: 'https://picsum.photos/seed/wellness/300/300' },
+    'Policier':              { icon: '🔍', color: '#1e40af', img: 'https://picsum.photos/seed/policier/300/300' },
+    'Science-Fiction':       { icon: '🚀', color: '#0f172a', img: 'https://picsum.photos/seed/scifi/300/300' },
+    'Histoire':              { icon: '🏛️', color: '#78350f', img: 'https://picsum.photos/seed/histoire/300/300' },
+  };
+
+  const DEFAULT_COLORS = ['#1a2d6b','#7c3aed','#e91e8c','#059669','#f59e0b','#dc2626','#0891b2','#65a30d'];
+
+  async function initNav() {
+    try {
+      const session = await getSession();
+      if (session) {
+        document.getElementById('nav-login').style.display = 'none';
+        document.getElementById('nav-logout').style.display = '';
+        document.getElementById('nav-profil').style.display = '';
+        const profile = await getProfile(session.user.id);
+        if (profile?.role === 'admin') document.getElementById('nav-admin').style.display = '';
+      }
+    } catch(e) {}
+  }
+
+  document.getElementById('nav-logout')?.addEventListener('click', logout);
+  document.getElementById('btn-more')?.addEventListener('click', e => {
+    e.preventDefault();
+    document.getElementById('catalogue').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  function bookCardHTML(b) {
+    return `<a href="detail.html?id=${b.id}" class="book-card">
+      <div class="book-cover"><img src="${b.image_url || 'assets/images/placeholder.png'}" alt="${b.titre}" loading="lazy" /></div>
+      <div class="book-info">
+        <div class="book-title">${b.titre}</div>
+        <div class="book-author">${b.auteur}</div>
+        ${b.categorie ? `<span class="book-cat">${b.categorie}</span>` : ''}
+      </div>
+    </a>`;
+  }
+
+  async function loadBooks() {
+    allBooks = await getBooks();
+
+    // Section catégories avec images
+    const cats = getCategories(allBooks);
+    const scroll = document.getElementById('cats-scroll');
+    scroll.innerHTML = cats.map((c, i) => {
+      const cfg = CAT_CONFIG[c];
+      const color = cfg ? cfg.color : DEFAULT_COLORS[i % DEFAULT_COLORS.length];
+      const icon = cfg ? cfg.icon : '📚';
+      const img = cfg ? cfg.img : '';
+      return `<button class="cat-img-card" data-cat="${c}" style="background-color:${color};${img ? `background-image:url('${img}')` : ''}">
+        <div class="cat-img-overlay"></div>
+        <span class="cat-img-icon">${icon}</span>
+        <span class="cat-img-label">${c}</span>
+      </button>`;
+    }).join('');
+
+    scroll.querySelectorAll('.cat-img-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const isActive = btn.classList.contains('cat-active');
+        scroll.querySelectorAll('.cat-img-card').forEach(b => b.classList.remove('cat-active'));
+        if (!isActive) { btn.classList.add('cat-active'); activeCategory = btn.dataset.cat; }
+        else activeCategory = null;
+        applyFilters();
+        document.getElementById('catalogue').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    // Featured : 6 premiers
+    const featured = allBooks.slice(0, 6);
+    document.getElementById('featured-grid').innerHTML = featured.length
+      ? featured.map(bookCardHTML).join('')
+      : '<p style="color:#64748b">Aucun livre disponible.</p>';
+
+    renderCatalogueFilters(cats);
+    renderBooks(allBooks);
+    document.getElementById('book-count').textContent = allBooks.length + ' livre(s)';
+  }
+
+  function renderCatalogueFilters(cats) {
+    const container = document.getElementById('category-filters');
+    container.innerHTML = `<button class="cat-btn active" data-cat="">Tous</button>${cats.map(c => `<button class="cat-btn" data-cat="${c}">${c}</button>`).join('')}`;
+    container.querySelectorAll('.cat-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        container.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeCategory = btn.dataset.cat || null;
+        document.getElementById('cats-scroll').querySelectorAll('.cat-img-card').forEach(b => b.classList.remove('cat-active'));
+        applyFilters();
+      });
+    });
+  }
+
+  function renderBooks(books) {
+    const grid = document.getElementById('books-grid');
+    const empty = document.getElementById('empty-msg');
+    if (!books.length) { grid.innerHTML = ''; empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    grid.innerHTML = books.map(bookCardHTML).join('');
+    document.getElementById('book-count').textContent = books.length + ' livre(s)';
+  }
+
+  function applyFilters() {
+    const q = document.getElementById('search-input').value.toLowerCase();
+    let filtered = allBooks;
+    if (activeCategory) filtered = filtered.filter(b => b.categorie === activeCategory);
+    if (q) filtered = filtered.filter(b => b.titre.toLowerCase().includes(q) || b.auteur.toLowerCase().includes(q));
+    renderBooks(filtered);
+  }
+
+  document.getElementById('search-input').addEventListener('input', applyFilters);
+  document.getElementById('search-btn').addEventListener('click', () => {
+    applyFilters();
+    document.getElementById('catalogue').scrollIntoView({ behavior: 'smooth' });
+  });
+  document.getElementById('search-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { applyFilters(); document.getElementById('catalogue').scrollIntoView({ behavior: 'smooth' }); }
+  });
+
+  initNav();
+  loadBooks();
+</script>
+</body>
+</html>

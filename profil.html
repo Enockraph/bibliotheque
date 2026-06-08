@@ -1,0 +1,78 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mon profil — Bibliothèque</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-logo">📚 Bibliothèque</a>
+  <div class="nav-links">
+    <a href="index.html">Accueil</a>
+    <a href="admin/index.html" id="nav-admin" style="display:none">Admin</a>
+    <button class="btn btn-outline btn-sm" id="nav-logout">Déconnexion</button>
+  </div>
+</nav>
+
+<main class="container" style="padding-top:2rem">
+  <div id="profil-header" style="margin-bottom:2rem"></div>
+  <h2 style="margin-bottom:1rem">❤️ Mes livres favoris</h2>
+  <div id="favs-grid" class="books-grid"></div>
+  <p id="empty-favs" style="text-align:center;color:#64748b;display:none">Vous n'avez pas encore de favoris.</p>
+</main>
+
+<script type="module">
+  import { requireAuth, logout, getProfile } from './js/auth.js';
+  import { getFavorites } from './js/books.js';
+
+  document.getElementById('nav-logout').addEventListener('click', logout);
+
+  async function init() {
+    const session = await requireAuth();
+    if (!session) return;
+    const profile = await getProfile(session.user.id);
+
+    if (profile?.role === 'admin') document.getElementById('nav-admin').style.display = '';
+
+    document.getElementById('profil-header').innerHTML = `
+      <div style="display:flex;align-items:center;gap:1.5rem">
+        ${profile?.avatar_url ? `<img src="${profile.avatar_url}" style="width:64px;height:64px;border-radius:50%;object-fit:cover" />` : `<div style="width:64px;height:64px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:2rem">👤</div>`}
+        <div>
+          <h2 style="margin:0">${profile?.nom || 'Utilisateur'}</h2>
+          <p style="color:#64748b;margin:0">${session.user.email}</p>
+          <span class="badge badge-${profile?.role || 'user'}" style="margin-top:4px;display:inline-block">${profile?.role || 'user'}</span>
+        </div>
+      </div>
+    `;
+
+    const favs = await getFavorites(session.user.id);
+    const grid = document.getElementById('favs-grid');
+    const empty = document.getElementById('empty-favs');
+
+    if (!favs.length) { empty.style.display = ''; return; }
+
+    grid.innerHTML = favs.map(f => {
+      const b = f.books;
+      if (!b) return '';
+      return `
+        <a href="detail.html?id=${b.id}" class="book-card">
+          <div class="book-cover">
+            <img src="${b.image_url || 'assets/images/placeholder.png'}" alt="${b.titre}" loading="lazy" />
+          </div>
+          <div class="book-info">
+            <h3 class="book-title">${b.titre}</h3>
+            <p class="book-author">${b.auteur}</p>
+            ${b.categorie ? `<span class="book-cat">${b.categorie}</span>` : ''}
+          </div>
+        </a>
+      `;
+    }).join('');
+  }
+
+  init();
+</script>
+</body>
+</html>

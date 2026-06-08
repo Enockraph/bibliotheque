@@ -1,0 +1,129 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connexion — BibliothèquePLR</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-logo">
+    <img src="assets/images/logo.png" alt="BibliothequePLR" onerror="this.style.display='none'" />
+    <span class="nav-logo-text">Bibliothèque<span>PLR</span></span>
+  </a>
+  <div class="nav-links"><a href="index.html">← Retour à l'accueil</a></div>
+</nav>
+
+<div class="auth-page">
+  <div class="auth-card">
+    <h2 style="margin-bottom:0.25rem;color:var(--primary)">Bienvenue</h2>
+    <p style="color:#64748b;font-size:0.9rem;margin-bottom:1.5rem">Connectez-vous pour accéder à votre bibliothèque</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login">Connexion</button>
+      <button class="auth-tab" id="tab-register">Inscription</button>
+    </div>
+
+    <span class="error-msg" id="auth-error"></span>
+    <span style="color:var(--success);font-size:0.85rem;display:block;min-height:1.2rem;margin-bottom:0.5rem" id="auth-success"></span>
+
+    <div id="form-login">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="votre@email.com" />
+      </div>
+      <div class="form-group">
+        <label>Mot de passe</label>
+        <input type="password" id="login-password" placeholder="••••••••" />
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:0.5rem" id="btn-login">Se connecter</button>
+      <div class="auth-divider">ou</div>
+      <button class="btn btn-google" id="btn-google">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" style="vertical-align:middle;margin-right:8px" />
+        Continuer avec Google
+      </button>
+    </div>
+
+    <div id="form-register" style="display:none">
+      <div class="form-group">
+        <label>Nom complet</label>
+        <input type="text" id="reg-nom" placeholder="Jean Dupont" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="votre@email.com" />
+      </div>
+      <div class="form-group">
+        <label>Mot de passe</label>
+        <input type="password" id="reg-password" placeholder="6 caractères minimum" />
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" id="btn-register">Créer mon compte</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { loginWithEmail, registerWithEmail, loginWithGoogle, getSession } from './js/auth.js';
+
+  getSession().then(s => { if (s) window.location.href = 'index.html'; });
+
+  const errEl = document.getElementById('auth-error');
+  const okEl = document.getElementById('auth-success');
+  function showError(msg) { errEl.textContent = msg; okEl.textContent = ''; }
+  function showSuccess(msg) { okEl.textContent = msg; errEl.textContent = ''; }
+
+  document.getElementById('tab-login').addEventListener('click', () => {
+    document.getElementById('form-login').style.display = '';
+    document.getElementById('form-register').style.display = 'none';
+    document.getElementById('tab-login').classList.add('active');
+    document.getElementById('tab-register').classList.remove('active');
+    errEl.textContent = ''; okEl.textContent = '';
+  });
+  document.getElementById('tab-register').addEventListener('click', () => {
+    document.getElementById('form-login').style.display = 'none';
+    document.getElementById('form-register').style.display = '';
+    document.getElementById('tab-register').classList.add('active');
+    document.getElementById('tab-login').classList.remove('active');
+    errEl.textContent = ''; okEl.textContent = '';
+  });
+
+  document.getElementById('btn-login').addEventListener('click', async () => {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) return showError('Veuillez remplir tous les champs.');
+    try {
+      document.getElementById('btn-login').textContent = 'Connexion...';
+      await loginWithEmail(email, password);
+      window.location.href = 'index.html';
+    } catch(e) {
+      document.getElementById('btn-login').textContent = 'Se connecter';
+      showError(e.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect.' : e.message);
+    }
+  });
+
+  document.getElementById('btn-register').addEventListener('click', async () => {
+    const nom = document.getElementById('reg-nom').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    if (!email || !password) return showError('Email et mot de passe requis.');
+    if (password.length < 6) return showError('Mot de passe trop court (6 caractères minimum).');
+    try {
+      document.getElementById('btn-register').textContent = 'Création...';
+      await registerWithEmail(email, password, nom);
+      showSuccess('✅ Compte créé ! Vérifiez votre email pour confirmer votre inscription.');
+      document.getElementById('btn-register').textContent = 'Créer mon compte';
+    } catch(e) {
+      document.getElementById('btn-register').textContent = 'Créer mon compte';
+      showError(e.message);
+    }
+  });
+
+  document.getElementById('btn-google').addEventListener('click', async () => {
+    try { await loginWithGoogle(); }
+    catch(e) { showError(e.message); }
+  });
+</script>
+</body>
+</html>

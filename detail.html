@@ -1,0 +1,89 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Détail du livre — Bibliothèque</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-logo">📚 Bibliothèque</a>
+  <div class="nav-links">
+    <a href="index.html">← Retour</a>
+    <a href="profil.html" id="nav-profil" style="display:none">Mon profil</a>
+    <a href="auth.html" class="btn btn-primary btn-sm" id="nav-login">Connexion</a>
+    <button class="btn btn-outline btn-sm" id="nav-logout" style="display:none">Déconnexion</button>
+  </div>
+</nav>
+
+<main class="container detail-page" id="detail-content">
+  <p style="text-align:center;padding:3rem;color:#64748b">Chargement...</p>
+</main>
+
+<script type="module">
+  import { getSession, getProfile, logout } from './js/auth.js';
+  import { getBook, getFavorites, toggleFavorite } from './js/books.js';
+
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+
+  async function init() {
+    const session = await getSession();
+    let profile = null;
+    let favIds = [];
+
+    if (session) {
+      document.getElementById('nav-login').style.display = 'none';
+      document.getElementById('nav-logout').style.display = '';
+      document.getElementById('nav-profil').style.display = '';
+      profile = await getProfile(session.user.id);
+      const favs = await getFavorites(session.user.id);
+      favIds = favs.map(f => f.book_id);
+    }
+
+    document.getElementById('nav-logout')?.addEventListener('click', logout);
+
+    if (!id) { document.getElementById('detail-content').innerHTML = '<p>Livre introuvable.</p>'; return; }
+
+    const book = await getBook(id);
+    if (!book) { document.getElementById('detail-content').innerHTML = '<p>Livre introuvable.</p>'; return; }
+
+    const isFav = favIds.includes(book.id);
+    document.title = book.titre + ' — Bibliothèque';
+
+    document.getElementById('detail-content').innerHTML = `
+      <div class="detail-layout">
+        <div class="detail-cover">
+          <img src="${book.image_url || 'assets/images/placeholder.png'}" alt="${book.titre}" />
+        </div>
+        <div class="detail-info">
+          <h1>${book.titre}</h1>
+          <p class="detail-author">par <strong>${book.auteur}</strong></p>
+          ${book.categorie ? `<span class="book-cat">${book.categorie}</span>` : ''}
+          ${book.description ? `<p class="detail-desc">${book.description}</p>` : ''}
+          <div style="margin-top:1.5rem;display:flex;gap:1rem;flex-wrap:wrap">
+            ${session ? `
+              <button class="btn ${isFav ? 'btn-primary' : 'btn-outline'}" id="btn-fav">
+                ${isFav ? '❤️ Dans mes favoris' : '🤍 Ajouter aux favoris'}
+              </button>
+            ` : `<a href="auth.html" class="btn btn-outline">Connectez-vous pour ajouter aux favoris</a>`}
+            ${profile?.role === 'admin' ? `<a href="admin/add-book.html?id=${book.id}" class="btn btn-outline">✏️ Modifier</a>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+
+    if (session) {
+      document.getElementById('btn-fav')?.addEventListener('click', async () => {
+        await toggleFavorite(session.user.id, book.id);
+        init();
+      });
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
