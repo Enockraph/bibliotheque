@@ -1,0 +1,104 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ajouter un livre — Admin</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/admin.css" />
+</head>
+<body>
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <a href="../index.html" class="logo">📚 BibliothèquePLR</a>
+    <ul class="sidebar-nav">
+      <li><a href="index.html">📊 Dashboard</a></li>
+      <li><a href="books.html">📖 Livres</a></li>
+      <li><a href="users.html">👥 Utilisateurs</a></li>
+      <li><a href="add-book.html" class="active">➕ Ajouter un livre</a></li>
+      <li><a href="#" id="btn-logout">🚪 Déconnexion</a></li>
+    </ul>
+  </aside>
+  <main class="admin-main">
+    <div class="admin-header">
+      <h1 id="page-title">Ajouter un livre</h1>
+      <a href="books.html" class="btn btn-outline">← Retour</a>
+    </div>
+    <form class="admin-form" id="book-form">
+      <div class="form-row">
+        <div class="form-group"><label>Titre *</label><input type="text" id="titre" required placeholder="Titre du livre" /></div>
+        <div class="form-group"><label>Auteur *</label><input type="text" id="auteur" required placeholder="Nom de l'auteur" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Catégorie</label><input type="text" id="categorie" placeholder="Romance, Roman, Nouvelles..." /></div>
+        <div class="form-group"><label>URL de la couverture</label><input type="url" id="image_url" placeholder="https://..." /></div>
+      </div>
+      <div class="form-group"><label>URL du fichier téléchargeable (PDF, EPUB…)</label><input type="url" id="file_url" placeholder="https://... lien direct de téléchargement" /></div>
+      <div class="form-group"><label>Description</label><textarea id="description" placeholder="Résumé du livre..."></textarea></div>
+      <div id="preview-img" style="margin-bottom:1rem;display:none">
+        <img id="img-preview" style="height:180px;border-radius:8px;object-fit:cover" />
+      </div>
+      <p class="error-msg" id="form-error"></p>
+      <p style="color:var(--success);font-size:0.85rem" id="form-success"></p>
+      <div style="display:flex;gap:1rem">
+        <button type="submit" class="btn btn-primary" id="btn-submit">💾 Enregistrer</button>
+        <a href="books.html" class="btn btn-outline">Annuler</a>
+      </div>
+    </form>
+  </main>
+</div>
+<script type="module">
+  import { requireAdmin, logout, getSession } from '../js/auth.js';
+  import { addBook, updateBook, getBook } from '../js/books.js';
+  document.getElementById('btn-logout').addEventListener('click', logout);
+  const params = new URLSearchParams(window.location.search);
+  const editId = params.get('id');
+  document.getElementById('image_url').addEventListener('input', e => {
+    const url = e.target.value;
+    const preview = document.getElementById('preview-img');
+    const img = document.getElementById('img-preview');
+    if (url) { img.src = url; preview.style.display = ''; }
+    else preview.style.display = 'none';
+  });
+  async function init() {
+    const profile = await requireAdmin();
+    if (!profile) return;
+    if (editId) {
+      document.getElementById('page-title').textContent = 'Modifier un livre';
+      document.getElementById('btn-submit').textContent = '💾 Mettre à jour';
+      const book = await getBook(editId);
+      if (book) {
+        document.getElementById('titre').value = book.titre;
+        document.getElementById('auteur').value = book.auteur;
+        document.getElementById('categorie').value = book.categorie || '';
+        document.getElementById('image_url').value = book.image_url || '';
+        document.getElementById('file_url').value = book.file_url || '';
+        document.getElementById('description').value = book.description || '';
+        if (book.image_url) { document.getElementById('img-preview').src = book.image_url; document.getElementById('preview-img').style.display = ''; }
+      }
+    }
+    document.getElementById('book-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const session = await getSession();
+      const data = {
+        titre: document.getElementById('titre').value.trim(),
+        auteur: document.getElementById('auteur').value.trim(),
+        categorie: document.getElementById('categorie').value.trim() || null,
+        image_url: document.getElementById('image_url').value.trim() || null,
+        file_url: document.getElementById('file_url').value.trim() || null,
+        description: document.getElementById('description').value.trim() || null,
+        added_by: session.user.id
+      };
+      const errEl = document.getElementById('form-error');
+      const okEl = document.getElementById('form-success');
+      errEl.textContent = ''; okEl.textContent = '';
+      try {
+        if (editId) { await updateBook(editId, data); okEl.textContent = 'Livre mis à jour !'; }
+        else { await addBook(data); okEl.textContent = 'Livre ajouté avec succès !'; document.getElementById('book-form').reset(); document.getElementById('preview-img').style.display = 'none'; }
+      } catch (err) { errEl.textContent = 'Erreur : ' + err.message; }
+    });
+  }
+  init();
+</script>
+</body>
+</html>

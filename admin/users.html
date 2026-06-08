@@ -1,0 +1,75 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Utilisateurs — Admin</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/admin.css" />
+</head>
+<body>
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <a href="../index.html" class="logo">📚 BibliothèquePLR</a>
+    <ul class="sidebar-nav">
+      <li><a href="index.html">📊 Dashboard</a></li>
+      <li><a href="books.html">📖 Livres</a></li>
+      <li><a href="users.html" class="active">👥 Utilisateurs</a></li>
+      <li><a href="add-book.html">➕ Ajouter un livre</a></li>
+      <li><a href="#" id="btn-logout">🚪 Déconnexion</a></li>
+    </ul>
+  </aside>
+  <main class="admin-main">
+    <div class="admin-header"><h1>Utilisateurs</h1></div>
+    <div class="admin-table-wrap">
+      <div class="admin-table-head">
+        <h3 id="user-count">Chargement...</h3>
+      </div>
+      <table>
+        <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Télécharg.</th><th>Inscrit le</th><th>Action</th></tr></thead>
+        <tbody id="users-table"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+<script type="module">
+  import { requireAdmin, logout, getSession } from '../js/auth.js';
+  import { supabase } from '../js/supabase.js';
+  document.getElementById('btn-logout').addEventListener('click', logout);
+  async function init() {
+    const profile = await requireAdmin();
+    if (!profile) return;
+    const session = await getSession();
+    const { data: users } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    const { data: dlCounts } = await supabase.from('downloads').select('user_id');
+    const dlMap = {};
+    (dlCounts || []).forEach(d => { dlMap[d.user_id] = (dlMap[d.user_id] || 0) + 1; });
+    document.getElementById('user-count').textContent = `${users?.length || 0} utilisateur(s)`;
+    const tbody = document.getElementById('users-table');
+    tbody.innerHTML = (users || []).map(u => `
+      <tr>
+        <td>${u.nom || '—'}</td>
+        <td>${u.email}</td>
+        <td><span class="badge badge-${u.role}">${u.role}</span></td>
+        <td>${dlMap[u.id] || 0}</td>
+        <td>${new Date(u.created_at).toLocaleDateString('fr-FR')}</td>
+        <td>
+          ${u.id !== session.user.id ? `
+            <button class="btn btn-outline btn-sm" data-id="${u.id}" data-role="${u.role}">
+              ${u.role === 'admin' ? '⬇️ Retirer admin' : '⬆️ Promouvoir admin'}
+            </button>` : '<span style="color:#64748b;font-size:0.85rem">Vous</span>'}
+        </td>
+      </tr>`).join('');
+    tbody.querySelectorAll('[data-id]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const newRole = btn.dataset.role === 'admin' ? 'user' : 'admin';
+        if (!confirm(`Voulez-vous ${newRole === 'admin' ? 'promouvoir en admin' : 'retirer le rôle admin'} ?`)) return;
+        await supabase.from('profiles').update({ role: newRole }).eq('id', btn.dataset.id);
+        init();
+      });
+    });
+  }
+  init();
+</script>
+</body>
+</html>

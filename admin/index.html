@@ -1,0 +1,76 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Admin — BibliothèquePLR</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/admin.css" />
+</head>
+<body>
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <a href="../index.html" class="logo">📚 BibliothèquePLR</a>
+    <ul class="sidebar-nav">
+      <li><a href="index.html" class="active">📊 Dashboard</a></li>
+      <li><a href="books.html">📖 Livres</a></li>
+      <li><a href="users.html">👥 Utilisateurs</a></li>
+      <li><a href="add-book.html">➕ Ajouter un livre</a></li>
+      <li style="margin-top:auto"><a href="#" id="btn-logout">🚪 Déconnexion</a></li>
+    </ul>
+  </aside>
+  <main class="admin-main">
+    <div class="admin-header">
+      <h1>Dashboard</h1>
+      <span id="admin-name" style="color:var(--text-muted);font-size:0.9rem"></span>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-icon">📖</div><div class="stat-label">Total livres</div><div class="stat-value" id="stat-books">—</div></div>
+      <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-label">Utilisateurs</div><div class="stat-value" id="stat-users">—</div></div>
+      <div class="stat-card"><div class="stat-icon">📥</div><div class="stat-label">Téléchargements</div><div class="stat-value" id="stat-dl">—</div></div>
+      <div class="stat-card"><div class="stat-icon">❤️</div><div class="stat-label">Favoris</div><div class="stat-value" id="stat-favs">—</div></div>
+    </div>
+    <div class="admin-table-wrap">
+      <div class="admin-table-head">
+        <h3>Derniers livres ajoutés</h3>
+        <a href="add-book.html" class="btn btn-primary btn-sm">+ Ajouter</a>
+      </div>
+      <table>
+        <thead><tr><th>Titre</th><th>Auteur</th><th>Catégorie</th><th>Télécharg.</th><th>Date</th></tr></thead>
+        <tbody id="recent-books"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+<script type="module">
+  import { requireAdmin, logout } from '../js/auth.js';
+  import { supabase } from '../js/supabase.js';
+  document.getElementById('btn-logout').addEventListener('click', logout);
+  async function init() {
+    const profile = await requireAdmin();
+    if (!profile) return;
+    document.getElementById('admin-name').textContent = 'Bonjour, ' + (profile.nom || profile.email);
+    const [booksRes, usersRes, dlRes, favsRes] = await Promise.all([
+      supabase.from('books').select('*', { count: 'exact' }),
+      supabase.from('profiles').select('*', { count: 'exact' }),
+      supabase.from('downloads').select('*', { count: 'exact' }),
+      supabase.from('favorites').select('*', { count: 'exact' })
+    ]);
+    document.getElementById('stat-books').textContent = booksRes.count ?? 0;
+    document.getElementById('stat-users').textContent = usersRes.count ?? 0;
+    document.getElementById('stat-dl').textContent = dlRes.count ?? 0;
+    document.getElementById('stat-favs').textContent = favsRes.count ?? 0;
+    const recent = (booksRes.data || []).slice(0, 8);
+    document.getElementById('recent-books').innerHTML = recent.map(b => `
+      <tr>
+        <td><strong>${b.titre}</strong></td>
+        <td>${b.auteur}</td>
+        <td>${b.categorie || '—'}</td>
+        <td>${b.downloads_count || 0}</td>
+        <td>${new Date(b.created_at).toLocaleDateString('fr-FR')}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#64748b">Aucun livre</td></tr>';
+  }
+  init();
+</script>
+</body>
+</html>

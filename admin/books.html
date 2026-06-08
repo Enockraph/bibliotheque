@@ -1,0 +1,82 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestion livres — Admin</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/admin.css" />
+</head>
+<body>
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <a href="../index.html" class="logo">📚 BibliothèquePLR</a>
+    <ul class="sidebar-nav">
+      <li><a href="index.html">📊 Dashboard</a></li>
+      <li><a href="books.html" class="active">📖 Livres</a></li>
+      <li><a href="users.html">👥 Utilisateurs</a></li>
+      <li><a href="add-book.html">➕ Ajouter un livre</a></li>
+      <li><a href="#" id="btn-logout">🚪 Déconnexion</a></li>
+    </ul>
+  </aside>
+  <main class="admin-main">
+    <div class="admin-header">
+      <h1>Gestion des livres</h1>
+      <a href="add-book.html" class="btn btn-primary">+ Ajouter un livre</a>
+    </div>
+    <div class="admin-table-wrap">
+      <div class="admin-table-head">
+        <input type="text" id="search-books" placeholder="Rechercher un livre..." style="padding:0.5rem 0.8rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;width:260px" />
+        <span id="book-count" style="color:#64748b;font-size:0.85rem"></span>
+      </div>
+      <table>
+        <thead><tr><th>Couverture</th><th>Titre</th><th>Auteur</th><th>Catégorie</th><th>📥</th><th>Actions</th></tr></thead>
+        <tbody id="books-table"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+<script type="module">
+  import { requireAdmin, logout } from '../js/auth.js';
+  import { getBooks, deleteBook } from '../js/books.js';
+  document.getElementById('btn-logout').addEventListener('click', logout);
+  let allBooks = [];
+  async function init() {
+    const profile = await requireAdmin();
+    if (!profile) return;
+    allBooks = await getBooks();
+    render(allBooks);
+  }
+  function render(books) {
+    document.getElementById('book-count').textContent = books.length + ' livre(s)';
+    const tbody = document.getElementById('books-table');
+    if (!books.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:2rem">Aucun livre</td></tr>'; return; }
+    tbody.innerHTML = books.map(b => `
+      <tr>
+        <td><img src="${b.image_url || '../assets/images/placeholder.png'}" style="width:42px;height:56px;object-fit:cover;border-radius:4px" /></td>
+        <td><strong>${b.titre}</strong></td>
+        <td>${b.auteur}</td>
+        <td>${b.categorie || '—'}</td>
+        <td>${b.downloads_count || 0}</td>
+        <td style="display:flex;gap:0.5rem">
+          <a href="add-book.html?id=${b.id}" class="btn btn-outline btn-sm">✏️</a>
+          <button class="btn btn-danger btn-sm" data-id="${b.id}">🗑️</button>
+        </td>
+      </tr>`).join('');
+    tbody.querySelectorAll('[data-id]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Supprimer ce livre ?')) return;
+        await deleteBook(btn.dataset.id);
+        allBooks = allBooks.filter(b => b.id !== btn.dataset.id);
+        render(allBooks);
+      });
+    });
+  }
+  document.getElementById('search-books').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    render(allBooks.filter(b => b.titre.toLowerCase().includes(q) || b.auteur.toLowerCase().includes(q)));
+  });
+  init();
+</script>
+</body>
+</html>
